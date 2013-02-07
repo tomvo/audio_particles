@@ -1,0 +1,278 @@
+<!doctype html>
+<html>
+<head>  
+    <title>webaudio example: histo3d</title>
+    
+    <script src="js/three.min.js"></script>
+    <script src="js/stats.min.js"></script>
+
+    
+    
+    <script src="js/dancer.js"></script>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.0/jquery.min.js"></script>
+
+    <style>
+        body {
+            background-color: black;
+        }
+    </style>
+</head>
+<body>
+<script>
+
+
+
+
+    
+    var dancer = new Dancer();
+    dancer.load({ src: 'sounds/hypnotized-small.ogg' });
+
+    var kick = dancer.createKick({
+      onKick: function ( mag ) {
+        
+        var prev_x = camera.position.x;
+
+        camera.position.x += 500;
+
+        renderer.render( scene, camera );
+
+      },
+      offKick: function ( mag ) {
+        camera.position.x = 3000;
+        
+        renderer.render( scene, camera );
+      }
+    });
+
+    //kick.on();
+    //dancer.play();
+
+    
+    var Environment = function(options){
+        this.options = options || [];
+
+        
+        this.scene = null;
+        this.camera = null;
+        this.renderer = null;
+
+        this.mouseX = 0, this.mouseY = 0,
+
+        this.particles = {};
+        this.particles.objects = [];
+
+        this.animations = [];
+
+        this._load_sound = function(){
+            var self = this;
+
+            this.audio = new Dancer();
+            this.audio.load({ src : this.options.src });
+            this.audio.play();
+            
+            this.audio.kick = this.audio.createKick(
+                {
+                    onKick : function(mag){ self.on_kick(mag); },
+                    offKick : function(mag){ self.off_kick(mag); },
+                }
+            );
+
+            this.audio.kick.on();
+        },
+
+        this._load_scene = function(){
+            var WIDTH = 400,
+              HEIGHT = 300;
+
+            // set some camera attributes
+            var VIEW_ANGLE = 45,
+              ASPECT = WIDTH / HEIGHT,
+              NEAR = 0.1,
+              FAR = 10000;
+
+            // get the DOM element to attach to
+            // - assume we've got jQuery to hand
+            //var $container = $('#container');
+            
+
+            // create a WebGL renderer, camera
+            // and a scene
+            this.renderer = new THREE.CanvasRenderer();
+            this.camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 4000 );
+            this.camera.position.z = 1000;
+
+            this.scene = new THREE.Scene();
+
+            // add the camera to the scene
+            this.scene.add(this.camera);
+
+            // the camera starts at 0,0,0
+            // so pull it back
+            //this.camera.position.z = 300;
+
+            // start the renderer
+            this.renderer.setSize( window.innerWidth, window.innerHeight );
+
+            // attach the render-supplied DOM element
+            $container = $('<div></div>').appendTo($('body')).append(this.renderer.domElement);
+
+
+            
+        },
+
+        this.go = function(){
+            this._load_sound();
+            this._load_scene();
+
+        },
+
+        //Sound methods =========
+        
+        this.on_kick = function (on){
+            this.particles.speed += 1000;
+        },
+
+        this.off_kick = function (mag) {
+            this.particles.speed = 300;
+        },
+
+        //Animatie methodes =====
+
+
+        this.render = function(){
+
+
+            this.renderer.render(this.scene, this.camera);
+        },
+        this.animate = function(action){
+            var self = this;
+
+            //action.call();
+            //console.log(self.sphere)
+            //self.sphere.position.y += 1;
+            //self.sphere.position.y += 1;
+
+            requestAnimationFrame( function(){  self.animate(action); }  );
+            
+            //loop door de animation functions heen
+            //console.log(this.animations);
+            for(var i = 0;i<=this.animations.length;i++){
+                if(typeof this.animations[i] == 'function'){
+                    this.animations[i]();
+                }
+            }
+            
+
+            this.render();       
+
+        },
+
+        this.load_particles = function (){
+            var particle, material; 
+            var self = this;
+
+            // we're gonna move from z position -1000 (far away) 
+            // to 1000 (where the camera is) and add a random particle at every pos. 
+            for ( var zpos= -1000; zpos < 1000; zpos+=10 ) {
+    
+                // we make a particle material and pass through the 
+                // colour and custom particle render function we defined. 
+                var color = '#'+Math.floor(Math.random()*16777215).toString(16);
+                material = new THREE.ParticleCanvasMaterial( { color: color, program: function(context){
+                     //console.log(1);    
+                    // we get passed a reference to the canvas context
+                    context.beginPath();
+                    // and we just have to draw our shape at 0,0 - in this
+                    // case an arc from 0 to 2Pi radians or 360º - a full circle!
+                    context.arc( 0, 0, 1, 0,  Math.PI * 2, true );
+                    context.fill();
+                } } );
+                // make the particle
+                particle = new THREE.Particle(material);
+    
+                // give it a random x and y position between -500 and 500
+                particle.position.x = Math.random() * 1000 - 500;
+                particle.position.y = Math.random() * 1000 - 500;
+    
+                // set its z position
+                particle.position.z = zpos;
+    
+                // scale it up a bit
+                particle.scale.x = particle.scale.y = Math.random()*10;
+    
+                // add it to the scene
+                this.scene.add( particle );
+    
+                // and to the array of particles. 
+                this.particles.objects.push(particle); 
+
+                this.particles.speed = 300;
+            }
+
+
+            //Laad de particle update functie in de animation loop
+            this.animations.push(function(){
+                // iterate through every particle
+                for(var i=0; i<self.particles.objects.length; i++) {
+        
+                    particle = self.particles.objects[i]; 
+        
+                    // and move it forward dependent on the mouseY position. 
+                    particle.position.z +=  self.particles.speed  * 0.1;
+        
+                    // if the particle is too close move it to the back
+                    if(particle.position.z>1000) particle.position.z-=2000; 
+        
+                }
+            });
+        }
+    };
+
+
+    window.environment = new Environment({ src : 'sounds/hypnotized-small.ogg' });
+    
+    window.environment.go();
+ /*
+
+    var radius = 100,
+    segments = 16,
+    rings = 16;
+
+    // create the sphere's material
+    var sphereMaterial = new THREE.MeshPhongMaterial(
+        {
+          color: 0xCC0000
+        });
+
+    // create a new mesh with
+    // sphere geometry - we will cover
+    // the sphereMaterial next!
+   environment.sphere = new THREE.Mesh(new THREE.SphereGeometry(radius,segments,rings),
+                                        sphereMaterial);
+    environment.sphere.geometry.dynamic = true;
+
+    // add the sphere to the scene
+    environment.scene.add(environment.sphere);
+
+    var pointLight = new THREE.PointLight(0xFFFFFF);
+
+    // set its position
+    pointLight.position.x = 10;
+    pointLight.position.y = 50;
+    pointLight.position.z = 130;
+
+    // add to the scene
+    environment.scene.add(pointLight);
+*/
+
+    window.environment.load_particles();
+    window.environment.animate();
+
+   
+ 
+
+</script>
+
+</body>
+</html>
