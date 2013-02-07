@@ -129,8 +129,10 @@
 
         //Sound methods =========
         
-        this.on_kick = function (on){
-            this.particles.speed += 1000;
+        this.on_kick = function (mag){
+            
+            this.particles.speed += 10000 * mag;
+            
         },
 
         this.off_kick = function (mag) {
@@ -220,7 +222,17 @@
         
                     // and move it forward dependent on the mouseY position. 
                     particle.position.z +=  self.particles.speed  * 0.1;
-        
+                    particle.scale.x = particle.scale.y = self.particles.speed * 0.01;
+                    
+                    if(particle.position.y < 1000)
+                        particle.position.y += 10;
+                    
+                    if(particle.position.y >= 1000)
+                        particle.position.y = -1000;
+
+
+                    //particle.position.x = Math.random() * 1000;
+
                     // if the particle is too close move it to the back
                     if(particle.position.z>1000) particle.position.z-=2000; 
         
